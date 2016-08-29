@@ -2,6 +2,11 @@ package com.userapi.RestUserAPI.model;
 
 import java.util.HashMap;
 
+/**
+ * This class is the model for a User.
+ * @author Rathan
+ *
+ */
 public class User {
 	
 	private String id;

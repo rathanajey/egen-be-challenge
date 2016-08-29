@@ -19,13 +19,19 @@ import org.bson.types.ObjectId;
 import java.text.SimpleDateFormat;
 import java.util.Map;
 
+/**
+ * This class acts as the service for User service interaction and contains the functionality logic.
+ * @author Rathan
+ *
+ */
 public class UserService {
 	
 	public static final String DB_NAME = "UserDB";
 	public static final String COLLECTION_NAME = "UserCollection";
 	private static final MongoClient MONGO_CLIENT = new MongoClient();
+	
 	/**
-	 * This method converts a give string to a JSONObject. 
+	 * This method converts a given string to a JSONObject. 
 	 * @param body
 	 * @return
 	 * @throws ParseException
@@ -42,7 +48,7 @@ public class UserService {
 	}
 	
 	/**
-	 * This method populates the User model with the request body
+	 * This method populates the User model with the request body.
 	 * @param requestBody
 	 * @return
 	 * @throws ParseException
@@ -152,9 +158,10 @@ public class UserService {
 		
 		String result = "success";
 		try{
-			FindIterable<Document> iterable = db.getCollection("COLLECTION_NAME").find(
+			FindIterable<Document> iterable = db.getCollection(COLLECTION_NAME).find(
 			        new Document("email", user.getEmail())).limit(1);		
 			
+			// If there is a record with the email id then consider that the user already exists and return error response.
 			if(iterable.iterator().hasNext()){
 				result = "error";
 			}
@@ -197,14 +204,16 @@ public class UserService {
 		
 		List<String> resultList = new ArrayList<String>();
 	
-		FindIterable<Document> iterable = db.getCollection("COLLECTION_NAME").find();
+		FindIterable<Document> iterable = db.getCollection(COLLECTION_NAME).find();
 		
+		// Iterate over each document to stringify and clean the id field.
 		iterable.forEach(new Block<Document>(){
 			@Override
 		    public void apply(final Document document) {
 				JSONParser parser = new JSONParser();
 				JSONObject jsonDocument;
 				
+				// Change the "_id" field from MongoDB to a general purpose "id" field.
 				try {
 					jsonDocument = (JSONObject) parser.parse(document.toJson());
 					JSONObject jsonId = (JSONObject) jsonDocument.get("_id");
@@ -234,22 +243,28 @@ public class UserService {
 	 */
 	public String updateUser(String id, String requestBody) throws ParseException, MongoException{
 
+		// If id from url is null or empty then return error response.
 		if(id == null || id.trim().equals("")) return "error";
 		
 		User user = UserService.getUserModel(requestBody);
 		boolean userFound = true;
+		
+		// Get the fields that need to be updated, from the request body.
 		HashMap<String, String> fieldsToUpdate = getFieldsToUpdate(user);
+		
+		// Does not make sense to update the dateCreated field.
 		fieldsToUpdate.remove("dateCreated");
 		
 		MongoDatabase db = getMongoDBObject();
 		
 		UpdateResult updateResult = null;
+		// For each field that needs to be update, call the update method.
 		for(Map.Entry<String, String> entry : fieldsToUpdate.entrySet()){
 			String fieldKey = entry.getKey();
 			String fieldValue = entry.getValue();
 
 			try{
-				updateResult = db.getCollection("COLLECTION_NAME").updateOne(new Document("_id", new ObjectId(id)),
+				updateResult = db.getCollection(COLLECTION_NAME).updateOne(new Document("_id", new ObjectId(id)),
 				        new Document("$set", new Document(fieldKey, fieldValue))
 				           		);
 			}
@@ -258,6 +273,7 @@ public class UserService {
 				break;
 			}
 			
+			// If the given id is not found in MongoDB then flag the error response and exit the loop.
 			if(updateResult.getMatchedCount() == 0){
 				userFound = false;
 				break;
