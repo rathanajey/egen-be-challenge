@@ -4,31 +4,20 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import com.userapi.RestUserAPI.model.User;
-import com.userapi.RestUserAPI.resource.UserResource;
-import com.mongodb.BasicDBObject;
 import com.mongodb.Block;
-import com.mongodb.DBCollection;
-import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
+import com.mongodb.MongoException;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.result.UpdateResult;
-
 import org.bson.Document;
 import org.bson.types.ObjectId;
-
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Locale;
 import java.util.Map;
-
-import static java.util.Arrays.asList;
-
 
 public class UserService {
 	
@@ -43,26 +32,20 @@ public class UserService {
 		JSONObject jsonRequestBody = UserService.parseRequestBody(requestBody);
 		
 		User user = new User();
-		System.out.println("Inside getUserModel");
 		user.setId((String) jsonRequestBody.get("id"));
-		System.out.println("Inside after Id");
 		user.setFirstName((String) jsonRequestBody.get("firstName"));
-		System.out.println("Inside after firstName");
 		user.setLastName((String) jsonRequestBody.get("lastName"));
 		user.setEmail((String) jsonRequestBody.get("email"));
+		
 	    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 		user.setDateCreated(sdf.format(new Date()));
-		System.out.println("Inside after dateCreated");
 		user.setProfilePic((String) jsonRequestBody.get("profilePic"));
-		System.out.println("Inside after profilePic");
 		
 		JSONObject jsonUserAddress = (JSONObject)jsonRequestBody.get("address");
-		System.out.println("Inside after address");
 		
 		HashMap<String, String> addressMap = new HashMap<String, String>();
 		if(jsonUserAddress != null){
 			addressMap.put("street", (String)jsonUserAddress.get("street"));
-			System.out.println("Inside after street");
 			addressMap.put("city", (String)jsonUserAddress.get("city"));
 			addressMap.put("zip", (String)jsonUserAddress.get("zip"));
 			addressMap.put("state", (String)jsonUserAddress.get("state"));
@@ -80,7 +63,7 @@ public class UserService {
 		
 		user.setAddress(addressMap);
 		user.setCompany(companyMap);
-	    System.out.println("Exiting User model creation");
+		
 		return user;
 	}
 	
@@ -136,24 +119,40 @@ public class UserService {
 		MongoClient mongoClient = new MongoClient();		
 		MongoDatabase db = mongoClient.getDatabase("UserDB");
 		
-		db.getCollection("UserCollection").insertOne(
-				new Document("firstName", user.getFirstName())
-				.append("lastName", user.getLastName())
-				.append("email", user.getEmail())
-				.append("profilePic", user.getProfilePic())
-				.append("dateCreated", user.getDateCreated())
-				.append("address", new Document()
-						.append("street", user.getAddress().get("street"))
-						.append("city", user.getAddress().get("city"))
-						.append("zip", user.getAddress().get("zip"))
-						.append("state", user.getAddress().get("state"))
-						.append("country", user.getAddress().get("country")))
-				.append("company", new Document()
-						.append("name", user.getCompany().get("name"))
-						.append("website", user.getCompany().get("website")))				
-				);
+		String result = "success";
+		try{
+			FindIterable<Document> iterable = db.getCollection("UserCollection").find(
+			        new Document("email", user.getEmail())).limit(1);		
 			
-		return "Success : true";
+			if(iterable.iterator().hasNext()){
+				result = "error";
+			}
+			else{
+				db.getCollection("UserCollection").insertOne(
+						new Document("firstName", user.getFirstName())
+						.append("lastName", user.getLastName())
+						.append("email", user.getEmail())
+						.append("profilePic", user.getProfilePic())
+						.append("dateCreated", user.getDateCreated())
+						.append("address", new Document()
+								.append("street", user.getAddress().get("street"))
+								.append("city", user.getAddress().get("city"))
+								.append("zip", user.getAddress().get("zip"))
+								.append("state", user.getAddress().get("state"))
+								.append("country", user.getAddress().get("country")))
+						.append("company", new Document()
+								.append("name", user.getCompany().get("name"))
+								.append("website", user.getCompany().get("website")))				
+						);
+			}
+		}catch(Exception e){
+			e.getMessage();
+			e.printStackTrace();
+		}
+		
+		mongoClient.close();
+			
+		return result;
 	}
 	
 	public List<String> getAllUsers() throws ParseException{
@@ -164,11 +163,13 @@ public class UserService {
 		List<String> resultList = new ArrayList<String>();
 	
 		FindIterable<Document> iterable = db.getCollection("UserCollection").find();
+		
 		iterable.forEach(new Block<Document>(){
 			@Override
 		    public void apply(final Document document) {
 				JSONParser parser = new JSONParser();
 				JSONObject jsonDocument;
+				
 				try {
 					jsonDocument = (JSONObject) parser.parse(document.toJson());
 					JSONObject jsonId = (JSONObject) jsonDocument.get("_id");
@@ -177,46 +178,55 @@ public class UserService {
 					jsonDocument.put("id", id);
 				    resultList.add(jsonDocument.toJSONString());
 				} catch (ParseException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 		    }
 		});
 		
+		mongoClient.close();
+		
 		return resultList;
 	}
 	
-	public String updateUser(String requestBody) throws ParseException, IllegalArgumentException{
-	    System.out.println("Inside updateUser");
+	public String updateUser(String id, String requestBody) throws ParseException, MongoException{
 
+		if(id == null || id.trim().equals("")) return "error";
+		
 		User user = UserService.getUserModel(requestBody);
 		boolean userFound = true;
 		HashMap<String, String> fieldsToUpdate = getFieldsToUpdate(user);
+		fieldsToUpdate.remove("dateCreated");
 		
 		MongoClient mongoClient = new MongoClient();
 		MongoDatabase db = mongoClient.getDatabase("UserDB");
-	    System.out.println("The user request id is");
-	    System.out.println(user.getId());
-		String id = user.getId();
 		
 		UpdateResult updateResult = null;
-		
 		for(Map.Entry<String, String> entry : fieldsToUpdate.entrySet()){
 			String fieldKey = entry.getKey();
 			String fieldValue = entry.getValue();
+
+			try{
+				updateResult = db.getCollection("UserCollection").updateOne(new Document("_id", new ObjectId(id)),
+				        new Document("$set", new Document(fieldKey, fieldValue))
+				           		);
+			}
+			catch(IllegalArgumentException e){
+				userFound = false;
+				break;
+			}
 			
-			updateResult = db.getCollection("UserCollection").updateOne(new Document("_id", new ObjectId(id)),
-			        new Document("$set", new Document(fieldKey, fieldValue))
-			           		);
 			if(updateResult.getMatchedCount() == 0){
 				userFound = false;
 				break;
 			}
 		}
 		
-		System.out.println(updateResult.getMatchedCount());
-		if(userFound == false) throw new IllegalArgumentException();
+		mongoClient.close();
 		
-		return "Success";
+		String result = "success";
+	
+		if(userFound == false) result = "error";
+		
+		return result;
 	}
 }
