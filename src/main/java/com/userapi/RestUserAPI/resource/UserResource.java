@@ -30,6 +30,15 @@ public class UserResource {
         
         put("/users", (req, res) -> userService.updateUser(req.body()), gson::toJson);
         
+        after((req, res) -> {
+        	res.type("application/json");
+        	});
+        
+        exception(IllegalArgumentException.class, (e, req, res) -> {
+        	res.status(404);
+        	res.body("User Not Found");
+        	});
+        
         System.out.println("Updated");
         //stop();
     }
