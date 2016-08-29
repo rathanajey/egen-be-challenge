@@ -153,7 +153,7 @@ public class UserService {
 						.append("website", user.getCompany().get("website")))				
 				);
 			
-		return "Done";
+		return "Success : true";
 	}
 	
 	public List<String> getAllUsers() throws ParseException{

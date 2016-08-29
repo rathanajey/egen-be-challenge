@@ -72,7 +72,5 @@ public class User {
 	}
 	public void setCompany(HashMap<String, String> company) {
 		this.company = company;
-	}
-	
-	
+	}	
 }
