@@ -20,7 +20,12 @@ import java.text.SimpleDateFormat;
 import java.util.Map;
 
 public class UserService {
-	
+	/**
+	 * This method convers a give string to a JSONObject. 
+	 * @param body
+	 * @return
+	 * @throws ParseException
+	 */
 	public static JSONObject parseRequestBody(String body) throws ParseException{
 		JSONParser jsonParser = new JSONParser();
 		JSONObject jsonObject = (JSONObject) jsonParser.parse(body);
@@ -28,6 +33,12 @@ public class UserService {
 		return jsonObject;
 	}
 	
+	/**
+	 * This method populates the User model with the request body
+	 * @param requestBody
+	 * @return
+	 * @throws ParseException
+	 */
 	public static User getUserModel(String requestBody) throws ParseException{
 		JSONObject jsonRequestBody = UserService.parseRequestBody(requestBody);
 		
@@ -67,6 +78,11 @@ public class UserService {
 		return user;
 	}
 	
+	/**
+	 * This method takes the User model and returns a list of the fields that must be updated for this user id.
+	 * @param user
+	 * @return
+	 */
 	public HashMap<String, String> getFieldsToUpdate(User user){
 		
 		HashMap<String, String> fieldsToUpdate = new HashMap<String, String>();
@@ -112,6 +128,14 @@ public class UserService {
 		return fieldsToUpdate;
 	}
 	
+	/**
+	 * This method inserts a user record in MongoDB if the user isn't already present.
+	 * The emailId field is used to check whether a user has already been entered. If so then the error
+	 * response is returned.
+	 * @param requestBody
+	 * @return
+	 * @throws ParseException
+	 */
 	public String createUser(String requestBody) throws ParseException{
 		
 		User user = UserService.getUserModel(requestBody);
@@ -155,6 +179,11 @@ public class UserService {
 		return result;
 	}
 	
+	/**
+	 * This method returns the list of user records in the MongoDB collection.
+	 * @return
+	 * @throws ParseException
+	 */
 	public List<String> getAllUsers() throws ParseException{
 		
 		MongoClient mongoClient = new MongoClient();
@@ -188,6 +217,15 @@ public class UserService {
 		return resultList;
 	}
 	
+	/**
+	 * This method updates the user record if the id from the PUT request exists.
+	 * If not then it returns an error response.
+	 * @param id
+	 * @param requestBody
+	 * @return
+	 * @throws ParseException
+	 * @throws MongoException
+	 */
 	public String updateUser(String id, String requestBody) throws ParseException, MongoException{
 
 		if(id == null || id.trim().equals("")) return "error";
