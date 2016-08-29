@@ -20,17 +20,25 @@ import java.text.SimpleDateFormat;
 import java.util.Map;
 
 public class UserService {
+	
+	public static final String DB_NAME = "UserDB";
+	public static final String COLLECTION_NAME = "UserCollection";
+	private static final MongoClient MONGO_CLIENT = new MongoClient();
 	/**
-	 * This method convers a give string to a JSONObject. 
+	 * This method converts a give string to a JSONObject. 
 	 * @param body
 	 * @return
 	 * @throws ParseException
 	 */
-	public static JSONObject parseRequestBody(String body) throws ParseException{
+	private static JSONObject parseRequestBody(String body) throws ParseException{
 		JSONParser jsonParser = new JSONParser();
 		JSONObject jsonObject = (JSONObject) jsonParser.parse(body);
 		
 		return jsonObject;
+	}
+	
+	public MongoDatabase getMongoDBObject(){		
+		return  MONGO_CLIENT.getDatabase(DB_NAME);
 	}
 	
 	/**
@@ -83,7 +91,7 @@ public class UserService {
 	 * @param user
 	 * @return
 	 */
-	public HashMap<String, String> getFieldsToUpdate(User user){
+	private HashMap<String, String> getFieldsToUpdate(User user){
 		
 		HashMap<String, String> fieldsToUpdate = new HashMap<String, String>();
 		
@@ -118,7 +126,7 @@ public class UserService {
 		field = addressField.get("country");
 		if(field != null && field.trim().length() > 0) fieldsToUpdate.put("address.country", field);
 		
-		HashMap<String, String> companyField = user.getAddress();
+		HashMap<String, String> companyField = user.getCompany();
 		field = companyField.get("name");
 		if(field != null && field.trim().length() > 0) fieldsToUpdate.put("company.name", field);
 		
@@ -139,20 +147,19 @@ public class UserService {
 	public String createUser(String requestBody) throws ParseException{
 		
 		User user = UserService.getUserModel(requestBody);
-		
-		MongoClient mongoClient = new MongoClient();		
-		MongoDatabase db = mongoClient.getDatabase("UserDB");
+			
+		MongoDatabase db = getMongoDBObject();
 		
 		String result = "success";
 		try{
-			FindIterable<Document> iterable = db.getCollection("UserCollection").find(
+			FindIterable<Document> iterable = db.getCollection("COLLECTION_NAME").find(
 			        new Document("email", user.getEmail())).limit(1);		
 			
 			if(iterable.iterator().hasNext()){
 				result = "error";
 			}
 			else{
-				db.getCollection("UserCollection").insertOne(
+				db.getCollection("COLLECTION_NAME").insertOne(
 						new Document("firstName", user.getFirstName())
 						.append("lastName", user.getLastName())
 						.append("email", user.getEmail())
@@ -174,7 +181,7 @@ public class UserService {
 			e.printStackTrace();
 		}
 		
-		mongoClient.close();
+		MONGO_CLIENT.close();
 			
 		return result;
 	}
@@ -186,12 +193,11 @@ public class UserService {
 	 */
 	public List<String> getAllUsers() throws ParseException{
 		
-		MongoClient mongoClient = new MongoClient();
-		MongoDatabase db = mongoClient.getDatabase("UserDB");
+		MongoDatabase db = getMongoDBObject();
 		
 		List<String> resultList = new ArrayList<String>();
 	
-		FindIterable<Document> iterable = db.getCollection("UserCollection").find();
+		FindIterable<Document> iterable = db.getCollection("COLLECTION_NAME").find();
 		
 		iterable.forEach(new Block<Document>(){
 			@Override
@@ -212,7 +218,7 @@ public class UserService {
 		    }
 		});
 		
-		mongoClient.close();
+		MONGO_CLIENT.close();
 		
 		return resultList;
 	}
@@ -235,8 +241,7 @@ public class UserService {
 		HashMap<String, String> fieldsToUpdate = getFieldsToUpdate(user);
 		fieldsToUpdate.remove("dateCreated");
 		
-		MongoClient mongoClient = new MongoClient();
-		MongoDatabase db = mongoClient.getDatabase("UserDB");
+		MongoDatabase db = getMongoDBObject();
 		
 		UpdateResult updateResult = null;
 		for(Map.Entry<String, String> entry : fieldsToUpdate.entrySet()){
@@ -244,7 +249,7 @@ public class UserService {
 			String fieldValue = entry.getValue();
 
 			try{
-				updateResult = db.getCollection("UserCollection").updateOne(new Document("_id", new ObjectId(id)),
+				updateResult = db.getCollection("COLLECTION_NAME").updateOne(new Document("_id", new ObjectId(id)),
 				        new Document("$set", new Document(fieldKey, fieldValue))
 				           		);
 			}
@@ -259,7 +264,7 @@ public class UserService {
 			}
 		}
 		
-		mongoClient.close();
+		MONGO_CLIENT.close();
 		
 		String result = "success";
 	

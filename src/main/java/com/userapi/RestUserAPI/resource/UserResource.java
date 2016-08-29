@@ -20,7 +20,7 @@ public class UserResource {
         	
         	if(result.equals("error")){
         		res.status(409);
-        		responseMap.put("error", "User with same email Id already exists");
+        		responseMap.put("error", "User with same email Id already exists.");
         		res.body(responseMap.toString());
         	}
         	else{
